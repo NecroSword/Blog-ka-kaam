@@ -14,7 +14,8 @@ import re
 
 class sab_kuch:
     def __init__(self):
-        self.cfg = Config()
+        self.cfg = Config()     #Location wali class ka object
+        #Database connection wagera banaya
         self.conn = self.make_db_conn(self.cfg.db_file)
         self.cur  = self.conn.cursor()
         self.mongo_client = self.make_mongo_conn()
@@ -32,7 +33,8 @@ class sab_kuch:
 
     def make_mongo_conn(self):
         return MongoClient()
-        
+    
+    #Agle 4 function article ko clear karne ke liye hai taaki tf-idf bana sake
     def make_lower_case(self,text):
             return text.lower()
 
@@ -59,7 +61,9 @@ class sab_kuch:
 
     # makes the tfidf matrix from the articles in the 
     # database
+    #Scraped articles database me dalne ke baad uske cleaned text ke according tf-idf bana denge
     def make_tfidf_from_df(self, df):
+        #Agar koi naya article publish hua hai to bhi ye function call hoga aur tf-idf ko update kardega
         vec = TfidfVectorizer(input='content', decode_error='replace',strip_accents='unicode', stop_words='english',ngram_range=(1,2), sublinear_tf=True)
         train_recs = list(df['cleaned_desc'].sample(frac=.5).values)
         vec.fit(train_recs)
@@ -68,8 +72,8 @@ class sab_kuch:
         pickle.dump(X,open('cfg.xfile','wb'))
         return
 
-    # inserts the articles into the sqlite db
-    # and mongo db
+
+    #Saare scraped articles ko database me daalne ke liye
     def insert_records_to_db(self, df):
         for index,row in df.iterrows():
             self.cur.execute('insert into articles (title,keywords,text,ptime) values (?,?,?,?);',
@@ -82,7 +86,8 @@ class sab_kuch:
         self.cur.execute('insert into article_counts(num_articles) values (?);',(val,))
         self.make_tfidf_from_df(df)
         return 
-
+        
+    #Naye published article ko Database me insert karne ke liye
     def insert_record_to_dbx(self,df, title, keywords, text, ptime):
         self.cur.execute('insert into articles (title,keywords,text,ptime) values (?,?,?,?);',
                     (title,keywords,text,ptime))
@@ -99,7 +104,8 @@ class sab_kuch:
 
     # returns pandas df with relevant columns from the raw medium 
     # csv file
-    def build_articles_df(self, df):
+    def build_articles_df(self, df):   
+        #Scraped articles ko thoda bahut clean karke jo colums hame chahiye sirf wahi chun ne ke liye     
         df.drop(df.columns.difference(['title','keywords','text','cleaned_desc', 'ptime']),1,inplace=True)
         #data['cleaned_desc'] = data['text'].apply(func = make_lower_case)
         #data['cleaned_desc'] = data.cleaned_desc.apply(func = remove_stop_words)
@@ -114,17 +120,27 @@ class sab_kuch:
         return
 
     def check_to_do(self, check, articles_csv=None,title=None, keywords=None, text=None):
+        #Jabhi bhi koi article publish hoga to ye function call karenge
+        #Agar check me 1 aaya hai matlab scraped wale articles ko database me daal rahe hai
+        # 0 ke case me koi naya article publish hua hai
+        #Csv file scraped articles ki hai but jab koi naya article publish hoga to hum use csv aur
+        #databse dono me add kardenge
         df = pd.read_csv(articles_csv)
         if(check==1):
             self.build_articles_df(df)
+            #Saare scraped articles ko database me daalne ke liye
         else:
+            #Naye article ke liye
+            #pblish time bhi nikalke store karenge dataframe me taaki latest wale recommend kar sake
             now = datetime.now()
             ptime = now.strftime("%d/%m/%Y %H:%M:%S")
             cleaned = self.make_lower_case(text)
             cleaned = self.remove_stop_words(cleaned)
             cleaned = self.remove_punctuation(cleaned)
             cleaned = self.remove_html(cleaned)
+            #Csv me insert kar dia pehle
             df1 = pd.DataFrame([title,keywords,text,cleaned, ptime])
             df = df.append(df1,ignore_index=True)
+            #Database me insert karne ke liye
             self.insert_record_to_dbx(df,title,keywords,text,ptime)
         return
