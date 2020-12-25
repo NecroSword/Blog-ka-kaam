@@ -1,4 +1,2 @@
-# sab-kar-daala
+# Blog-Ka-Kaam
 
-Api complete kardia
-(Recommendor wala part bacha hai bas)
